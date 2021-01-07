@@ -1,0 +1,188 @@
+Function chineseToNum(rng)
+
+Dim arr1, str As String, reg As Object, whole As Boolean, wan As Boolean, yi As Boolean, yuan As Boolean, sum, product, char As String
+
+'arr1 = Array("分", "角", "元", "拾", "佰", "千", "万", "拾", "佰", "千", "亿", "拾", "佰", "千")
+str = rng
+Set reg = CreateObject("vbscript.regexp")
+product = 1
+sum = 0
+wan = False
+yi = False
+whole = True
+If InStr(str, "整") = 0 Then whole = False
+yuan = True
+If InStr(str, "元") = 0 Then yuan = False
+
+
+If yuan = False Then
+    With reg
+        .Global = True
+        .Pattern = "[壹贰叁肆伍陆柒捌玖][分角]"
+        Set mat = .Execute(str)
+        If mat.Count = 2 Then
+            chineseToNum = findindex(Left(mat(0).Value, 1)) * 10 ^ -1 + findindex(Left(mat(1).Value, 1)) * 10 ^ -2
+        Else
+            If Mid(mat(0).Value, 2, 1) = "角" Then
+                chineseToNum = findindex(Left(mat(0).Value, 1)) * 10 ^ -1
+            Else
+                chineseToNum = findindex(Left(mat(0).Value, 1)) * 10 ^ -2
+            End If
+        End If
+    End With
+ElseIf whole = True Then
+    With reg
+        .Global = True
+        .Pattern = "[壹贰叁肆伍陆柒捌玖][元拾佰千万亿]+"
+        Set mat = .Execute(str)
+        For i = mat.Count - 1 To 0 Step -1
+            If mat(i).Length > 2 Then
+                For j = 1 To mat(i).Length - 1
+                    product = product * findindex(Mid(mat(i).Value, j + 1, 1))
+                    If Mid(mat(i).Value, j + 1, 1) = "万" Then wan = True
+                    If Mid(mat(i).Value, j + 1, 1) = "亿" Then yi = True
+                Next
+                sum = sum + findindex(Left(mat(i).Value, 1)) * product
+                product = 1
+            Else
+                char = Mid(mat(i).Value, 2, 1)
+                If wan = False And yi = False Then
+                    sum = sum + findindex(Left(mat(i).Value, 1)) * findindex(char)
+                ElseIf yi = False Then
+                    If Not char = "亿" Then
+                        sum = sum + findindex(Left(mat(i).Value, 1)) * findindex(char) * 10000
+                    Else
+                        sum = sum + findindex(Left(mat(i).Value, 1)) * findindex(char)
+                    End If
+                Else
+                    sum = sum + findindex(Left(mat(i).Value, 1)) * findindex(char) * 100000000
+                End If
+                If char = "万" Then wan = True
+                If char = "亿" Then yi = True
+            End If
+        Next
+    End With
+    chineseToNum = sum
+Else
+    arr = Split(str, "元")
+    chineseToNum = chineseToNum(arr(0) & "元整") + chineseToNum(arr(1))
+End If
+
+'With reg
+'        .Global = True
+'        .Pattern = "([壹贰叁肆伍陆柒捌玖][分角元拾佰千万亿])"
+'End With
+End Function
+
+Function findindex(str As String)
+arr = Array("壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖", "零", "拾", "佰", "千", "万", "亿", "元")
+For i = LBound(arr) To UBound(arr)
+    If str = arr(i) Then
+        Select Case i
+            Case 0 To 8
+                findindex = i + 1
+            Case 9
+                findindex = 0
+            Case 10
+                findindex = 10
+            Case 11
+                findindex = 100
+            Case 12
+                findindex = 1000
+            Case 13
+                findindex = 10000
+            Case 14
+                findindex = 100000000
+            Case 15
+                findindex = 1
+        End Select
+        Exit Function
+    End If
+Next
+findindex = -1
+End Function
+
+Function numToChinese(rng)
+Dim str1 As String, str2 As String, output As String, dic1 As Object, dic2 As Object, l As Integer, char As String, reg As Object, reg2 As Object
+
+temp = Format(Round(rng, 2), "0.00")
+str1 = Split(CStr(temp), ".")(0)
+str2 = Split(CStr(temp), ".")(1)
+l = Len(str1)
+Set dic1 = CreateObject("scripting.dictionary")
+With dic1
+    .Add "0", "零"
+    .Add "1", "壹"
+    .Add "2", "贰"
+    .Add "3", "叁"
+    .Add "4", "肆"
+    .Add "5", "伍"
+    .Add "6", "陆"
+    .Add "7", "柒"
+    .Add "8", "捌"
+    .Add "9", "玖"
+End With
+Set dic2 = CreateObject("scripting.dictionary")
+With dic2
+    .Add 1, "元"
+    .Add 2, "拾"
+    .Add 3, "佰"
+    .Add 4, "千"
+    .Add 5, "万"
+    .Add 6, "拾"
+    .Add 7, "佰"
+    .Add 8, "千"
+    .Add 9, "亿"
+    .Add 10, "拾"
+    .Add 11, "佰"
+    .Add 12, "千"
+End With
+Set reg = CreateObject("vbscript.regexp")
+Set reg2 = CreateObject("vbscript.regexp")
+
+If str1 = "0" Then
+    If Left(str2, 1) = "0" And Right(str2, 1) = "0" Then
+        output = "人民币零元整"
+    ElseIf Left(str2, 1) = "0" Then
+        output = "人民币" & dic1(Right(str2, 1)) & "分"
+    ElseIf Right(str2, 1) = "0" Then
+        output = "人民币" & dic1(Left(str2, 1)) & "角"
+    Else
+        output = "人民币" & dic1(Left(str2, 1)) & "角" & dic1(Right(str2, 1)) & "分"
+    End If
+ElseIf str2 = "00" Then
+    For i = 1 To l
+        char = Mid(str1, l - i + 1, 1)
+        If Not char = "0" Or dic2(i) = "万" Or dic2(i) = "亿" Then
+            output = dic1(char) & dic2(i) & output
+        Else
+            output = dic1(char) & output
+        End If
+    Next
+    With reg
+        .Global = True
+        .Pattern = "零+"
+        output = .Replace(output, "零")
+    End With
+    
+    output = output & "元"
+    With reg2
+        .Global = True
+        .Pattern = "([元拾佰千万亿])零+([元拾佰千万亿])"
+        Set mat = .Execute(output)
+        output = .Replace(output, "$1" & "$2")
+    End With
+    output = Left(output, Len(output) - 1)
+    
+    If Right(str1, 1) = 0 Then
+        output = "人民币" & output & "元整"
+    Else
+        output = "人民币" & output & "整"
+    End If
+Else
+    str_1 = numToChinese(Int(rng))
+    str_2 = numToChinese(rng - Int(rng))
+    output = Left(str_1, Len(str_1) - 1) & Right(str_2, Len(str_2) - 3)
+End If
+numToChinese = output
+End Function
